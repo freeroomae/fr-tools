@@ -20,6 +20,18 @@ export type Property = {
     property_type: string;
     image_url: string;
     scraped_at: string;
+    mortgage: string;
+    neighborhood: string;
+    what_do: string;
+    city: string;
+    county: string;
+    tenant_type: string;
+    rental_timing: string;
+    furnish_type: string;
+    floor_number: number;
+    features: string[];
+    terms_and_condition: string;
+    page_link: string;
 };
 
 async function getHtml(url: string): Promise<string> {

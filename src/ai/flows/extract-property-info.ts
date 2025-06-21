@@ -20,6 +20,18 @@ const ExtractedPropertySchema = z.object({
   area: z.string().describe('The total area of the property (e.g., "2,500 sqft").'),
   property_type: z.string().describe('The type of property (e.g., House, Apartment).'),
   image_url: z.string().describe('A URL to a primary image of the property.'),
+  mortgage: z.string().describe('Mortgage information, if available.'),
+  neighborhood: z.string().describe('The neighborhood where the property is located.'),
+  what_do: z.string().describe('What can be done with the property (e.g., For Rent, For Sale).'),
+  city: z.string().describe('The city where the property is located.'),
+  county: z.string().describe('The county where the property is located.'),
+  tenant_type: z.string().describe('The preferred tenant type (e.g., Family, Bachelor).'),
+  rental_timing: z.string().describe('The timing for rental (e.g., Immediately, Flexible).'),
+  furnish_type: z.string().describe('The furnishing status (e.g., Furnished, Unfurnished).'),
+  floor_number: z.number().describe('The floor number of the property.'),
+  features: z.array(z.string()).describe('A list of key features or amenities.'),
+  terms_and_condition: z.string().describe('Any terms and conditions mentioned in the listing.'),
+  page_link: z.string().describe('The direct link to the property details page.'),
 });
 
 const ExtractPropertyInfoInputSchema = z.object({
@@ -46,10 +58,11 @@ const prompt = ai.definePrompt({
   prompt: `You are an expert at extracting structured data from web pages. Analyze the following HTML content from a real estate website and extract the details for all properties listed on the page.
 
 Your goal is to populate all fields in the provided JSON schema.
-- For 'title', 'description', 'price', 'location', 'area', and 'property_type', if you cannot find the information, return an empty string "".
-- For 'bedrooms' and 'bathrooms', if you cannot find the information, return 0.
+- For all string fields, if you cannot find the information, return an empty string "".
+- For all number fields, if you cannot find the information, return 0.
+- For the 'features' array, if no information is found, return an empty array [].
 - For 'image_url', find a relevant, high-quality image URL from the HTML. If no suitable image URL is found, use the placeholder "https://placehold.co/600x400.png".
-- Ensure the 'image_url' is a full, valid URL.
+- Ensure the 'image_url' and 'page_link' are full, valid URLs.
 
 HTML Content:
 \`\`\`html

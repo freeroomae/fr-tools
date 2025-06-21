@@ -15,8 +15,11 @@ export const downloadJson = (data: Property[], filename: string) => {
 export const downloadCsv = (data: Property[], filename: string) => {
   // Define headers for the CSV file
   const headers = [
-    "id", "title", "price", "location", "bedrooms", "bathrooms", 
-    "area", "property_type", "description", "enhanced_description", "original_url"
+    "id", "title", "price", "location", "bedrooms", "bathrooms",
+    "area", "property_type", "description", "enhanced_description", "original_url",
+    "mortgage", "neighborhood", "what_do", "city", "county", "tenant_type",
+    "rental_timing", "furnish_type", "floor_number", "features", 
+    "terms_and_condition", "page_link"
   ];
 
   const dataForCsv = data.map(prop => ({
@@ -30,7 +33,19 @@ export const downloadCsv = (data: Property[], filename: string) => {
       property_type: prop.property_type,
       description: prop.description,
       enhanced_description: prop.enhanced_description || '',
-      original_url: prop.original_url
+      original_url: prop.original_url,
+      mortgage: prop.mortgage,
+      neighborhood: prop.neighborhood,
+      what_do: prop.what_do,
+      city: prop.city,
+      county: prop.county,
+      tenant_type: prop.tenant_type,
+      rental_timing: prop.rental_timing,
+      furnish_type: prop.furnish_type,
+      floor_number: prop.floor_number,
+      features: prop.features.join(', '),
+      terms_and_condition: prop.terms_and_condition,
+      page_link: prop.page_link,
   }));
 
   const worksheet = utils.json_to_sheet(dataForCsv, { header: headers });
