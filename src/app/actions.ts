@@ -19,6 +19,7 @@ export type Property = {
     area: string;
     property_type: string;
     image_url: string;
+    image_urls: string[];
     scraped_at: string;
     mortgage: string;
     neighborhood: string;
@@ -32,6 +33,17 @@ export type Property = {
     features: string[];
     terms_and_condition: string;
     page_link: string;
+
+    validated_information: string;
+    building_information: string;
+    permit_number: string;
+    ded_license_number: string;
+    rera_registration_number: string;
+    reference_id: string;
+    dld_brn: string;
+    listed_by_name: string;
+    listed_by_phone: string;
+    listed_by_email: string;
 };
 
 async function getHtml(url: string): Promise<string> {
@@ -91,6 +103,7 @@ export async function scrapeHtml(html: string, originalUrl: string = 'scraped-fr
         original_title: p.title,
         original_description: p.description,
         scraped_at: new Date().toISOString(),
+        image_url: p.image_urls && p.image_urls.length > 0 ? p.image_urls[0] : 'https://placehold.co/600x400.png',
     }));
     
     return properties;

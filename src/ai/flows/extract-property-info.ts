@@ -19,10 +19,10 @@ const ExtractedPropertySchema = z.object({
   bathrooms: z.number().describe('The number of bathrooms.'),
   area: z.string().describe('The total area of the property (e.g., "2,500 sqft").'),
   property_type: z.string().describe('The type of property (e.g., House, Apartment).'),
-  image_url: z.string().describe('A URL to a primary image of the property.'),
+  image_urls: z.array(z.string()).describe('A list of URLs to all primary images of the property.'),
   mortgage: z.string().describe('Mortgage information, if available.'),
   neighborhood: z.string().describe('The neighborhood where the property is located.'),
-  what_do: z.string().describe('What can be done with the property (e.g., For Rent, For Sale).'),
+  what_do: z.string().describe('The purpose of the listing (e.g., For Rent, For Sale).'),
   city: z.string().describe('The city where the property is located.'),
   county: z.string().describe('The county where the property is located.'),
   tenant_type: z.string().describe('The preferred tenant type (e.g., Family, Bachelor).'),
@@ -32,6 +32,17 @@ const ExtractedPropertySchema = z.object({
   features: z.array(z.string()).describe('A list of key features or amenities.'),
   terms_and_condition: z.string().describe('Any terms and conditions mentioned in the listing.'),
   page_link: z.string().describe('The direct link to the property details page.'),
+
+  validated_information: z.string().describe('Any information marked as "Validated" or "Verified".'),
+  building_information: z.string().describe('Details about the building the property is in.'),
+  permit_number: z.string().describe('The official permit number for the listing or construction.'),
+  ded_license_number: z.string().describe('The DED (Department of Economic Development) license number.'),
+  rera_registration_number: z.string().describe('The RERA (Real Estate Regulatory Agency) registration number.'),
+  reference_id: z.string().describe('The unique reference ID or listing number for the property.'),
+  dld_brn: z.string().describe('The DLD (Dubai Land Department) BRN (Broker Registration Number).'),
+  listed_by_name: z.string().describe('The name of the person or agency listing the property.'),
+  listed_by_phone: z.string().describe('The contact phone number for the listing.'),
+  listed_by_email: z.string().describe('The contact email address for the listing.'),
 });
 
 const ExtractPropertyInfoInputSchema = z.object({
@@ -60,9 +71,10 @@ const prompt = ai.definePrompt({
 Your goal is to populate all fields in the provided JSON schema.
 - For all string fields, if you cannot find the information, return an empty string "".
 - For all number fields, if you cannot find the information, return 0.
-- For the 'features' array, if no information is found, return an empty array [].
-- For 'image_url', find a relevant, high-quality image URL from the HTML. If no suitable image URL is found, use the placeholder "https://placehold.co/600x400.png".
-- Ensure the 'image_url' and 'page_link' are full, valid URLs.
+- For all array fields (like 'features' and 'image_urls'), if no information is found, return an empty array [].
+- For 'image_urls', find all relevant, high-quality image URLs from the HTML. If no suitable image URLs are found, use a single placeholder "https://placehold.co/600x400.png".
+- Ensure all URLs are full, valid URLs.
+- Extract contact details like phone numbers and emails for the listed person or agency.
 
 HTML Content:
 \`\`\`html
