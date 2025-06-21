@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'dbz-images.dubizzle.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
