@@ -1,7 +1,7 @@
 "use client";
 
 import Image from 'next/image';
-import { BedDouble, Bath, Square, MapPin, Loader2, Sparkles, Building, Globe, CheckCircle, FileText, Clock, Users, Sofa, List, Hash, ChevronDown, Mail, Phone, User, Award, ShieldCheck, FileKey, Building2 } from 'lucide-react';
+import { BedDouble, Bath, Square, MapPin, Loader2, Sparkles, Building, Globe, CheckCircle, FileText, Clock, Users, Sofa, List, Hash, ChevronDown, Mail, Phone, User, Award, ShieldCheck, FileKey, Building2, Images } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -85,6 +85,29 @@ export function ResultsTable({ properties, onEnhance, isEnhancingId }: ResultsTa
           </AccordionTrigger>
           <AccordionContent>
             <div className="px-4 pb-4 border-t pt-4 bg-muted/50 space-y-6">
+              
+              {prop.image_urls && prop.image_urls.length > 0 && !prop.image_urls[0].includes('placehold.co') && (
+                <>
+                  <div>
+                    <h4 className="font-semibold text-base mb-3 flex items-center gap-2"><Images className="h-4 w-4"/> Image Gallery</h4>
+                    <div className="flex overflow-x-auto space-x-4 pb-2 -mx-4 px-4">
+                      {prop.image_urls.map((url, index) => (
+                        <div key={index} className="flex-shrink-0">
+                          <Image
+                            src={url}
+                            alt={`${prop.title} image ${index + 1}`}
+                            width={200}
+                            height={150}
+                            className="rounded-md object-cover h-[150px]"
+                            data-ai-hint="property house"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
 
               <div>
                 <h4 className="font-semibold text-base mb-3 flex items-center gap-2">Property Details</h4>
