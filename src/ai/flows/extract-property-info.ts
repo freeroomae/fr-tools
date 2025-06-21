@@ -19,7 +19,7 @@ const ExtractedPropertySchema = z.object({
   bathrooms: z.number().describe('The number of bathrooms.'),
   area: z.string().describe('The total area of the property (e.g., "2,500 sqft").'),
   property_type: z.string().describe('The type of property (e.g., House, Apartment).'),
-  image_url: z.string().url().describe('A URL to a primary image of the property.'),
+  image_url: z.string().describe('A URL to a primary image of the property.'),
 });
 
 const ExtractPropertyInfoInputSchema = z.object({
