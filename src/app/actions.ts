@@ -3,6 +3,8 @@
 import { enhancePropertyContent } from '@/ai/flows/enhance-property-description';
 import { extractPropertyInfo } from '@/ai/flows/extract-property-info';
 import { z } from 'zod';
+import fs from 'fs/promises';
+import path from 'path';
 
 export type Property = {
     id: string;
@@ -46,6 +48,51 @@ export type Property = {
     listed_by_phone: string;
     listed_by_email: string;
 };
+
+async function downloadImage(imageUrl: string): Promise<string | null> {
+    // Don't download placeholders or invalid URLs
+    if (!imageUrl || !imageUrl.startsWith('http') || imageUrl.includes('placehold.co')) {
+        return null;
+    }
+
+    try {
+        const response = await fetch(imageUrl, {
+             headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            },
+            redirect: 'follow',
+        });
+
+        if (!response.ok) {
+            console.error(`Failed to fetch image: ${response.status} ${response.statusText} from URL: ${imageUrl}`);
+            return null;
+        }
+
+        const imageBuffer = Buffer.from(await response.arrayBuffer());
+        
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+        const originalFilename = path.basename(new URL(imageUrl).pathname);
+        const fileExtension = path.extname(originalFilename) || '.jpg';
+        const filename = `${uniqueSuffix}${fileExtension}`;
+
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'properties');
+        
+        await fs.mkdir(uploadDir, { recursive: true });
+        
+        const filePath = path.join(uploadDir, filename);
+
+        await fs.writeFile(filePath, imageBuffer);
+
+        const publicUrl = `/uploads/properties/${filename}`;
+        console.log(`Image downloaded: ${imageUrl} -> ${publicUrl}`);
+        return publicUrl;
+        
+    } catch (error) {
+        console.error(`Error downloading image from ${imageUrl}:`, error);
+        return null;
+    }
+}
+
 
 async function getHtml(url: string): Promise<string> {
     try {
@@ -95,19 +142,18 @@ export async function scrapeHtml(html: string, originalUrl: string = 'scraped-fr
         return [];
     }
     
-    console.log(`AI extracted ${result.properties.length} properties. Enhancing content...`);
+    console.log(`AI extracted ${result.properties.length} properties. Processing content and images...`);
     
-    const enhancementPromises = result.properties.map(p => {
-        if (p.title && p.description) {
-            return enhancePropertyContent({ title: p.title, description: p.description });
-        }
-        return Promise.resolve(null);
-    });
-    
-    const enhancedContents = await Promise.all(enhancementPromises);
+    const processingPromises = result.properties.map(async (p, index) => {
+        const downloadedImageUrls = await Promise.all(
+            p.image_urls.map(url => downloadImage(url))
+        );
+        const localImageUrls = downloadedImageUrls.filter((url): url is string => !!url);
 
-    const properties: Property[] = result.properties.map((p, index) => {
-        const enhancedContent = enhancedContents[index];
+        const enhancedContent = (p.title && p.description) 
+            ? await enhancePropertyContent({ title: p.title, description: p.description })
+            : null;
+        
         return {
             ...p,
             id: `prop-${Date.now()}-${index}`,
@@ -119,11 +165,14 @@ export async function scrapeHtml(html: string, originalUrl: string = 'scraped-fr
             enhanced_title: enhancedContent?.enhancedTitle,
             enhanced_description: enhancedContent?.enhancedDescription,
             scraped_at: new Date().toISOString(),
-            image_url: p.image_urls && p.image_urls.length > 0 ? p.image_urls[0] : 'https://placehold.co/600x400.png',
-        }
+            image_urls: localImageUrls.length > 0 ? localImageUrls : ['https://placehold.co/600x400.png'],
+            image_url: localImageUrls.length > 0 ? localImageUrls[0] : 'https://placehold.co/600x400.png',
+        };
     });
+
+    const properties = await Promise.all(processingPromises);
     
-    console.log('Content enhancement complete.');
+    console.log('Content processing and image downloading complete.');
     return properties;
 }
 
