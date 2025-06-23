@@ -91,7 +91,14 @@ const extractPropertyInfoFlow = ai.defineFlow(
     outputSchema: ExtractPropertyInfoOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output ?? { properties: [] };
+    try {
+      const {output} = await prompt(input);
+      return output ?? { properties: [] };
+    } catch (error) {
+      console.error("Error during AI-powered property extraction:", error);
+      // Return an empty object to prevent the entire scraping process from failing
+      // if the AI model returns malformed data.
+      return { properties: [] };
+    }
   }
 );
