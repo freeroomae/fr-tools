@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { login } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { ScanSearch, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
   const { toast } = useToast();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -22,23 +20,14 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await login(username, password);
-      if (result.success) {
-        toast({ title: 'Login Successful', description: 'Redirecting...' });
-        router.push('/');
-        router.refresh(); // Important to re-fetch server data
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Login Failed',
-          description: result.error,
-        });
-      }
+      await login(username, password);
+      // On success, the server action will redirect the user.
+      // This part of the code will not be reached.
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'An error occurred',
-        description: 'Please try again later.',
+        title: 'Login Failed',
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
       });
     } finally {
       setIsLoading(false);

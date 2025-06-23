@@ -222,15 +222,16 @@ export async function enhanceContent(input: { title: string, description: string
     return result;
 }
 
-export async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+export async function login(username: string, password: string) {
   if (username.toLowerCase() === 'admin' && password === 'admin') {
     const session = await getSession();
     session.username = username;
     session.isLoggedIn = true;
     await session.save();
-    return { success: true };
+    revalidatePath('/');
+    redirect('/');
   }
-  return { success: false, error: 'Invalid username or password.' };
+  throw new Error('Invalid username or password.');
 }
 
 export async function logoutUser() {
