@@ -5,6 +5,9 @@ import { extractPropertyInfo } from '@/ai/flows/extract-property-info';
 import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
+import { getSession, logout } from '@/lib/auth';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 export type Property = {
     id: string;
@@ -217,4 +220,21 @@ export async function enhanceContent(input: { title: string, description: string
     // Call the Genkit flow
     const result = await enhancePropertyContent(validatedInput.data);
     return result;
+}
+
+export async function login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+  if (username.toLowerCase() === 'admin' && password === 'admin') {
+    const session = await getSession();
+    session.username = username;
+    session.isLoggedIn = true;
+    await session.save();
+    return { success: true };
+  }
+  return { success: false, error: 'Invalid username or password.' };
+}
+
+export async function logoutUser() {
+  await logout();
+  revalidatePath('/');
+  redirect('/login');
 }
