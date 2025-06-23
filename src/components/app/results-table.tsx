@@ -1,19 +1,15 @@
 "use client";
 
 import Image from 'next/image';
-import { BedDouble, Bath, Square, MapPin, Loader2, Sparkles, Building, Globe, CheckCircle, FileText, Clock, Users, Sofa, List, Hash, ChevronDown, Mail, Phone, User, Award, ShieldCheck, FileKey, Building2, Images } from 'lucide-react';
+import { BedDouble, Bath, Square, MapPin, Building, Globe, CheckCircle, FileText, Clock, Users, Sofa, List, Hash, ChevronDown, Mail, Phone, User, Award, ShieldCheck, FileKey, Building2, Images } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { type Property } from '@/app/actions';
 import { Separator } from '@/components/ui/separator';
 
 interface ResultsTableProps {
   properties: Property[];
-  onEnhance: (property: Property) => void;
-  isEnhancingId: string | null;
 }
 
 interface DetailItemProps {
@@ -37,7 +33,7 @@ const DetailItem: React.FC<DetailItemProps> = ({ icon: Icon, label, value }) => 
   );
 };
 
-export function ResultsTable({ properties, onEnhance, isEnhancingId }: ResultsTableProps) {
+export function ResultsTable({ properties }: ResultsTableProps) {
   if (properties.length === 0) {
     return (
       <Card className="text-center py-12">
@@ -200,28 +196,6 @@ export function ResultsTable({ properties, onEnhance, isEnhancingId }: ResultsTa
 
               <Separator />
               
-              <div className="mt-2 flex justify-end">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        onClick={() => onEnhance(prop)}
-                        disabled={!prop.original_description || isEnhancingId === prop.id}
-                      >
-                        {isEnhancingId === prop.id ?
-                          <Loader2 className="h-4 w-4 animate-spin" /> :
-                          <Sparkles className="h-4 w-4" />
-                        }
-                        <span className="ml-2">Enhance Content</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Use AI to improve the property title and description.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
             </div>
           </AccordionContent>
         </AccordionItem>

@@ -4,7 +4,7 @@ import { useState, useTransition, useCallback, ChangeEvent, DragEvent } from 're
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { ArrowRight, FileUp, Loader2, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
+import { ArrowRight, FileUp, Loader2, Trash2, UploadCloud } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,9 +19,8 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import { type Property, scrapeUrl, scrapeHtml, scrapeBulk, enhanceContent } from '@/app/actions';
+import { type Property, scrapeUrl, scrapeHtml, scrapeBulk } from '@/app/actions';
 import { ResultsTable } from './results-table';
-import { EnhanceDialog } from './enhance-dialog';
 import { downloadJson, downloadCsv } from '@/lib/export';
 
 const UrlFormSchema = z.object({
@@ -36,9 +35,6 @@ export function MainPage() {
   const [results, setResults] = useState<Property[]>([]);
   const [history, setHistory] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isEnhancing, setIsEnhancing] = useState<string | null>(null);
-  const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
-  const [dialogContent, setDialogContent] = useState<{ original: string; enhanced: string } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [bulkUrls, setBulkUrls] = useState('');
 
@@ -98,44 +94,6 @@ export function MainPage() {
     }
     handleScrape(() => scrapeBulk(bulkUrls));
     setBulkUrls('');
-  };
-
-  const handleEnhance = async (property: Property) => {
-    const titleToEnhance = property.original_title;
-    const descriptionToEnhance = property.original_description;
-
-    if (!descriptionToEnhance) {
-      toast({ variant: "destructive", title: "Cannot Enhance", description: "Property has no original description." });
-      return;
-    }
-    setIsEnhancing(property.id);
-    try {
-      const result = await enhanceContent({ title: titleToEnhance, description: descriptionToEnhance });
-      setDialogContent({ 
-        original: `Title: ${titleToEnhance}\n\nDescription: ${descriptionToEnhance}`, 
-        enhanced: `Title: ${result.enhancedTitle}\n\nDescription: ${result.enhancedDescription}` 
-      });
-      setIsFileDialogOpen(true);
-      
-      const update = (p: Property) => p.id === property.id ? { 
-        ...p,
-        title: result.enhancedTitle,
-        description: result.enhancedDescription,
-        enhanced_title: result.enhancedTitle, 
-        enhanced_description: result.enhancedDescription 
-      } : p;
-      setResults(prev => prev.map(update));
-      setHistory(prev => prev.map(update));
-
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "AI Enhancement Failed",
-        description: error instanceof Error ? error.message : "Could not enhance content.",
-      });
-    } finally {
-      setIsEnhancing(null);
-    }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -277,19 +235,11 @@ export function MainPage() {
             ) : (
               <ResultsTable 
                 properties={results}
-                onEnhance={handleEnhance}
-                isEnhancingId={isEnhancing}
               />
             )}
           </div>
         )}
-
       </div>
-      <EnhanceDialog
-        isOpen={isFileDialogOpen}
-        onClose={() => setIsFileDialogOpen(false)}
-        content={dialogContent}
-      />
     </>
   );
 }
