@@ -207,17 +207,17 @@ export function ResultsTable({ properties, onEnhance, isEnhancingId }: ResultsTa
                       <Button
                         size="sm"
                         onClick={() => onEnhance(prop)}
-                        disabled={isEnhancingId === prop.id}
+                        disabled={!prop.original_description || isEnhancingId === prop.id}
                       >
                         {isEnhancingId === prop.id ?
                           <Loader2 className="h-4 w-4 animate-spin" /> :
                           <Sparkles className="h-4 w-4" />
                         }
-                        <span className="ml-2">Enhance Description</span>
+                        <span className="ml-2">Enhance Content</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Use AI to improve the property description.</p>
+                      <p>Use AI to improve the property title and description.</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

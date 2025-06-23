@@ -1,6 +1,6 @@
 "use server";
 
-import { enhancePropertyDescription } from '@/ai/flows/enhance-property-description';
+import { enhancePropertyContent } from '@/ai/flows/enhance-property-description';
 import { extractPropertyInfo } from '@/ai/flows/extract-property-info';
 import { z } from 'zod';
 
@@ -11,6 +11,7 @@ export type Property = {
     original_title: string;
     description: string;
     original_description: string;
+    enhanced_title?: string;
     enhanced_description?: string;
     price: string;
     location: string;
@@ -94,18 +95,35 @@ export async function scrapeHtml(html: string, originalUrl: string = 'scraped-fr
         return [];
     }
     
-    console.log(`AI extracted ${result.properties.length} properties.`);
-
-    const properties: Property[] = result.properties.map((p, index) => ({
-        ...p,
-        id: `prop-${Date.now()}-${index}`,
-        original_url: originalUrl,
-        original_title: p.title,
-        original_description: p.description,
-        scraped_at: new Date().toISOString(),
-        image_url: p.image_urls && p.image_urls.length > 0 ? p.image_urls[0] : 'https://placehold.co/600x400.png',
-    }));
+    console.log(`AI extracted ${result.properties.length} properties. Enhancing content...`);
     
+    const enhancementPromises = result.properties.map(p => {
+        if (p.title && p.description) {
+            return enhancePropertyContent({ title: p.title, description: p.description });
+        }
+        return Promise.resolve(null);
+    });
+    
+    const enhancedContents = await Promise.all(enhancementPromises);
+
+    const properties: Property[] = result.properties.map((p, index) => {
+        const enhancedContent = enhancedContents[index];
+        return {
+            ...p,
+            id: `prop-${Date.now()}-${index}`,
+            original_url: originalUrl,
+            original_title: p.title,
+            original_description: p.description,
+            title: enhancedContent ? enhancedContent.enhancedTitle : p.title,
+            description: enhancedContent ? enhancedContent.enhancedDescription : p.description,
+            enhanced_title: enhancedContent?.enhancedTitle,
+            enhanced_description: enhancedContent?.enhancedDescription,
+            scraped_at: new Date().toISOString(),
+            image_url: p.image_urls && p.image_urls.length > 0 ? p.image_urls[0] : 'https://placehold.co/600x400.png',
+        }
+    });
+    
+    console.log('Content enhancement complete.');
     return properties;
 }
 
@@ -136,17 +154,18 @@ export async function scrapeBulk(urls: string): Promise<Property[] | null> {
     return allResults;
 }
 
-const EnhanceDescriptionInput = z.object({
+const EnhanceContentInput = z.object({
+  title: z.string(),
   description: z.string(),
 });
 
-export async function enhanceDescription(description: string) {
-    const validatedInput = EnhanceDescriptionInput.safeParse({ description });
+export async function enhanceContent(input: { title: string, description: string }) {
+    const validatedInput = EnhanceContentInput.safeParse(input);
     if (!validatedInput.success) {
         throw new Error('Invalid input for enhancement.');
     }
 
     // Call the Genkit flow
-    const result = await enhancePropertyDescription(validatedInput.data);
+    const result = await enhancePropertyContent(validatedInput.data);
     return result;
 }

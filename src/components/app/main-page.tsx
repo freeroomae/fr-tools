@@ -19,7 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import { type Property, scrapeUrl, scrapeHtml, scrapeBulk, enhanceDescription } from '@/app/actions';
+import { type Property, scrapeUrl, scrapeHtml, scrapeBulk, enhanceContent } from '@/app/actions';
 import { ResultsTable } from './results-table';
 import { EnhanceDialog } from './enhance-dialog';
 import { downloadJson, downloadCsv } from '@/lib/export';
@@ -101,17 +101,29 @@ export function MainPage() {
   };
 
   const handleEnhance = async (property: Property) => {
-    if (!property.description) {
-      toast({ variant: "destructive", title: "Cannot Enhance", description: "Property has no description." });
+    const titleToEnhance = property.original_title;
+    const descriptionToEnhance = property.original_description;
+
+    if (!descriptionToEnhance) {
+      toast({ variant: "destructive", title: "Cannot Enhance", description: "Property has no original description." });
       return;
     }
     setIsEnhancing(property.id);
     try {
-      const result = await enhanceDescription(property.description);
-      setDialogContent({ original: property.description, enhanced: result.enhancedDescription });
+      const result = await enhanceContent({ title: titleToEnhance, description: descriptionToEnhance });
+      setDialogContent({ 
+        original: `Title: ${titleToEnhance}\n\nDescription: ${descriptionToEnhance}`, 
+        enhanced: `Title: ${result.enhancedTitle}\n\nDescription: ${result.enhancedDescription}` 
+      });
       setIsFileDialogOpen(true);
-      // Optionally update the property in the results/history state
-      const update = (p: Property) => p.id === property.id ? { ...p, enhanced_description: result.enhancedDescription } : p;
+      
+      const update = (p: Property) => p.id === property.id ? { 
+        ...p,
+        title: result.enhancedTitle,
+        description: result.enhancedDescription,
+        enhanced_title: result.enhancedTitle, 
+        enhanced_description: result.enhancedDescription 
+      } : p;
       setResults(prev => prev.map(update));
       setHistory(prev => prev.map(update));
 
@@ -119,7 +131,7 @@ export function MainPage() {
       toast({
         variant: "destructive",
         title: "AI Enhancement Failed",
-        description: error instanceof Error ? error.message : "Could not enhance description.",
+        description: error instanceof Error ? error.message : "Could not enhance content.",
       });
     } finally {
       setIsEnhancing(null);

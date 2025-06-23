@@ -33,14 +33,14 @@ export function EnhanceDialog({ isOpen, onClose, content }: EnhanceDialogProps) 
         <Separator />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-hidden">
           <div className="flex flex-col gap-2 overflow-hidden">
-            <h3 className="font-semibold text-lg">Original Description</h3>
-            <div className="prose prose-sm max-w-none text-muted-foreground p-4 border rounded-md h-full overflow-y-auto">
+            <h3 className="font-semibold text-lg">Original Content</h3>
+            <div className="prose prose-sm max-w-none text-muted-foreground p-4 border rounded-md h-full overflow-y-auto whitespace-pre-wrap">
               {content.original}
             </div>
           </div>
           <div className="flex flex-col gap-2 overflow-hidden">
-            <h3 className="font-semibold text-lg text-primary">Enhanced Description</h3>
-            <div className="prose prose-sm max-w-none p-4 border rounded-md border-primary/50 bg-primary/5 h-full overflow-y-auto">
+            <h3 className="font-semibold text-lg text-primary">Enhanced Content</h3>
+            <div className="prose prose-sm max-w-none p-4 border rounded-md border-primary/50 bg-primary/5 h-full overflow-y-auto whitespace-pre-wrap">
               {content.enhanced}
             </div>
           </div>
