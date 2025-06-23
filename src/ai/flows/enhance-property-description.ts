@@ -59,6 +59,13 @@ const enhancePropertyContentFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    // If enhancement fails, return the original content wrapped in the output schema
+    if (!output) {
+      return {
+        enhancedTitle: input.title,
+        enhancedDescription: input.description,
+      };
+    }
+    return output;
   }
 );
