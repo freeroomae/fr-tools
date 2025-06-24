@@ -10,7 +10,7 @@ import type { FirebaseApp } from 'firebase/app';
 
 
 // Function to download an image from a URL, and upload it to Firebase Storage
-async function uploadImageAndGetUrl(imageUrl: string, propertyId: string): Promise<string> {
+async function uploadImageAndGetUrl(imageUrl: string, propertyId: string): Promise<string | null> {
     const firebaseConfig = {
         apiKey: process.env.FIREBASE_API_KEY,
         authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -64,8 +64,8 @@ async function uploadImageAndGetUrl(imageUrl: string, propertyId: string): Promi
         return downloadUrl;
     } catch (error) {
         console.error(`Error processing image from ${imageUrl}:`, error);
-        // Re-throw the error to ensure the operation fails loudly
-        throw new Error(`Failed to upload image from ${imageUrl}. Reason: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // Return null instead of throwing to allow graceful fallback
+        return null;
     }
 }
 
@@ -108,7 +108,7 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
                     console.warn(`Could not create absolute URL for image: ${imgUrl} with base: ${originalUrl}`);
                     return null;
                 }
-            }).filter((url): url is string => url !== null)
+            }).filter((url: string | null): url is string => url !== null)
             : [];
 
         // Step 1: Download images, upload to Firebase Storage, and get public URLs
@@ -118,7 +118,7 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
             )
         );
 
-        const finalImageUrls = uploadedImageUrls.filter(Boolean); // Filter out any nulls from failed uploads
+        const finalImageUrls = uploadedImageUrls.filter((url): url is string => url !== null); // Filter out any nulls from failed uploads
         if (finalImageUrls.length === 0) {
             finalImageUrls.push('https://placehold.co/600x400.png');
         }
@@ -143,7 +143,7 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
             enhanced_description: enhancedContent.enhancedDescription,
             scraped_at: new Date().toISOString(),
             image_urls: finalImageUrls,
-            image_url: finalImageUrls[0],
+            image_url: finalImageUrls[0] || 'https://placehold.co/600x400.png',
         };
     });
 

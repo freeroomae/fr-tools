@@ -88,7 +88,7 @@ export function DatabaseTable({ properties, onEdit, onDelete, onEnhance }: Datab
               <div className="flex items-center justify-between gap-4 w-full text-left">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                       <Image
-                        src={prop.image_url}
+                        src={prop.image_url || 'https://placehold.co/600x400.png'}
                         alt={prop.title}
                         width={120}
                         height={80}
@@ -150,7 +150,7 @@ export function DatabaseTable({ properties, onEdit, onDelete, onEnhance }: Datab
                             {prop.image_urls.map((url, index) => (
                                 <div key={index} className="flex-shrink-0">
                                 <Image
-                                    src={url}
+                                    src={url || 'https://placehold.co/600x400.png'}
                                     alt={`${prop.title} image ${index + 1}`}
                                     width={200}
                                     height={150}
