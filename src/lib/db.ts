@@ -43,26 +43,35 @@ export async function savePropertiesToDb(newProperties: Property[]): Promise<voi
     const updatedDb = [...db];
 
     newProperties.forEach(newProp => {
-        // Determine if the new property is a duplicate of an existing one.
+        // Determine if the new property is a duplicate of an existing one by checking multiple fields.
         const existingPropIndex = updatedDb.findIndex(p => {
-            // Strongest check: a non-generic original_url
+            // Strongest check: a non-generic original_url. This is the most reliable.
             if (p.original_url && p.original_url !== 'scraped-from-html' && p.original_url === newProp.original_url) {
                 return true;
             }
-            // Next best: a page_link extracted from the content
-            if (p.page_link && newProp.page_link && p.page_link === newProp.page_link) {
+            
+            // Next best check: a unique reference ID if available.
+            if (p.reference_id && newProp.reference_id && p.reference_id !== "" && p.reference_id === newProp.reference_id) {
                 return true;
             }
-            // Fallback for HTML pastes without a clear URL: title and location
-            if (p.title === newProp.title && p.location === newProp.location && newProp.original_url === 'scraped-from-html') {
+
+            // Another good check: the direct page link if extracted.
+            if (p.page_link && newProp.page_link && p.page_link !== "" && p.page_link === newProp.page_link) {
                 return true;
             }
+
+            // Fallback for HTML pastes or cases without unique IDs: original title and location.
+            // This is less reliable but better than nothing.
+            if (p.original_title && newProp.original_title && p.original_title === newProp.original_title && p.location === newProp.location) {
+                return true;
+            }
+
             return false;
         });
 
         if (existingPropIndex > -1) {
             // It's a duplicate, so we update the existing entry.
-            // Crucially, we keep the existing property's ID to maintain data integrity.
+            // We keep the existing property's ID to maintain data integrity and avoid key issues in React.
             const originalId = updatedDb[existingPropIndex].id;
             updatedDb[existingPropIndex] = { ...newProp, id: originalId };
         } else {
