@@ -143,7 +143,7 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
             enhanced_description: enhancedContent.enhancedDescription,
             scraped_at: new Date().toISOString(),
             image_urls: finalImageUrls,
-            image_url: finalImageUrls[0],
+            image_url: finalImageUrls[0] || 'https://placehold.co/600x400.png',
         };
     });
 
