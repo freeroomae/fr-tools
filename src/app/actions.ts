@@ -6,7 +6,6 @@ import { extractPropertyInfo } from '@/ai/flows/extract-property-info';
 import { savePropertiesToDb, saveHistoryEntry, updatePropertyInDb, deletePropertyFromDb } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { type Property, type HistoryEntry } from '@/lib/types';
-import { uploadImageFromUrl } from '@/lib/storage';
 
 async function getHtml(url: string): Promise<string> {
     try {
@@ -31,25 +30,34 @@ async function getHtml(url: string): Promise<string> {
     }
 }
 
+function makeUrlAbsolute(url: string, baseUrl: string): string {
+    if (!url || url.startsWith('http') || url.startsWith('data:')) {
+        return url;
+    }
+    try {
+        return new URL(url, baseUrl).href;
+    } catch (e) {
+        console.warn(`Could not construct absolute URL for ${url} with base ${baseUrl}`);
+        return url;
+    }
+}
+
+
 async function processAndSaveHistory(properties: any[], originalUrl: string, historyEntry: Omit<HistoryEntry, 'id' | 'date' | 'propertyCount'>) {
     console.log(`AI extracted ${properties.length} properties. Processing content...`);
     
     const processingPromises = properties.map(async (p, index) => {
-        // Step 1: Handle and upload images
-        let originalImageUrls = (p.image_urls && Array.isArray(p.image_urls))
-            ? p.image_urls.filter((url: any): url is string => typeof url === 'string' && url.startsWith('http'))
+        // Step 1: Ensure image URLs are absolute
+        const absoluteImageUrls = (p.image_urls && Array.isArray(p.image_urls))
+            ? p.image_urls
+                .map((imgUrl: string) => makeUrlAbsolute(imgUrl, originalUrl))
+                .filter((url: string) => url.startsWith('http'))
             : [];
-        
-        console.log(`Found ${originalImageUrls.length} images for property. Uploading to storage...`);
-        const uploadedImageUrls = await Promise.all(
-            originalImageUrls.map(url => uploadImageFromUrl(url))
-        );
 
-        let finalImageUrls = uploadedImageUrls.filter((url): url is string => !!url);
-        if (finalImageUrls.length === 0) {
-            finalImageUrls = ['https://placehold.co/600x400.png'];
+        if (absoluteImageUrls.length === 0) {
+            absoluteImageUrls.push('https://placehold.co/600x400.png');
         }
-        console.log(`Finished uploading images. New URLs:`, finalImageUrls);
+        console.log(`Processed image URLs:`, absoluteImageUrls);
 
         // Step 2: Enhance text content
         const enhancedContent = (p.title && p.description) 
@@ -68,8 +76,8 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
             enhanced_title: enhancedContent.enhancedTitle,
             enhanced_description: enhancedContent.enhancedDescription,
             scraped_at: new Date().toISOString(),
-            image_urls: finalImageUrls,
-            image_url: finalImageUrls[0],
+            image_urls: absoluteImageUrls,
+            image_url: absoluteImageUrls[0],
         };
     });
 

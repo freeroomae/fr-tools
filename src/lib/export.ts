@@ -1,3 +1,4 @@
+
 "use client";
 
 import { saveAs } from 'file-saver';
@@ -5,14 +6,20 @@ import { utils, write } from 'xlsx';
 import type { Property } from '@/lib/types';
 
 const getAbsoluteUrl = (url: string) => {
+  if (!url) return '';
   if (url.startsWith('http')) {
     return url;
   }
+  // This function is client-side, so window should be available.
   if (typeof window !== 'undefined') {
-    return new URL(url, window.location.origin).href;
+    try {
+        return new URL(url, window.location.origin).href;
+    } catch (e) {
+        return url; // Return original if it's not a valid partial URL
+    }
   }
-  // Fallback for server-side rendering (less ideal)
-  return `https://your-domain.com${url}`; 
+  // Fallback for any edge cases (e.g. server-side rendering context)
+  return url; 
 };
 
 const createNestedObject = (prop: Property) => {
