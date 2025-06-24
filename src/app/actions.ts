@@ -9,34 +9,27 @@ import { type Property, type HistoryEntry } from '@/lib/types';
 import type { FirebaseApp } from 'firebase/app';
 
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-};
-
-// Check if all Firebase config values are present.
-const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
-
-if (!isFirebaseConfigured) {
-    console.warn("Firebase configuration is incomplete. Image uploads will be skipped. Please check your .env file.");
-}
-
-
 // Function to download an image from a URL, and upload it to Firebase Storage
 async function uploadImageAndGetUrl(imageUrl: string, propertyId: string): Promise<string> {
+    const firebaseConfig = {
+        apiKey: process.env.FIREBASE_API_KEY,
+        authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+        appId: process.env.FIREBASE_APP_ID,
+    };
+
+    const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
+
     if (!isFirebaseConfigured) {
-      console.log("Firebase not configured, returning original image URL.");
-      return imageUrl;
+        throw new Error("Firebase configuration is incomplete. Cannot upload images. Please check your .env file.");
     }
 
     if (!imageUrl || !imageUrl.startsWith('http')) {
         console.log(`Skipping invalid or non-http URL: ${imageUrl}`);
-        return imageUrl; // Return original URL if it's invalid or local
+        // Return a placeholder for invalid URLs rather than failing the entire batch.
+        return "https://placehold.co/600x400.png"; 
     }
     
     try {
@@ -77,8 +70,8 @@ async function uploadImageAndGetUrl(imageUrl: string, propertyId: string): Promi
         return downloadUrl;
     } catch (error) {
         console.error(`Error processing image from ${imageUrl}:`, error);
-        // Fallback to the original URL if upload fails
-        return imageUrl;
+        // Re-throw the error to ensure the operation fails loudly
+        throw new Error(`Failed to upload image from ${imageUrl}. Reason: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
 
@@ -114,11 +107,7 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
         const uploadedImageUrls = await Promise.all(
             (p.image_urls && Array.isArray(p.image_urls))
             ? p.image_urls.map((imgUrl: string) => 
-                uploadImageAndGetUrl(imgUrl, `prop-${Date.now()}-${index}`).catch(err => {
-                    console.error(`Failed to process image ${imgUrl}:`, err);
-                    // On failure, fall back to original URL
-                    return imgUrl;
-                })
+                uploadImageAndGetUrl(imgUrl, `prop-${Date.now()}-${index}`)
             )
             : []
         );
