@@ -19,9 +19,21 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID,
 };
 
+// Check if all Firebase config values are present.
+const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
+
+if (!isFirebaseConfigured) {
+    console.warn("Firebase configuration is incomplete. Image uploads will be skipped. Please check your .env file.");
+}
+
 
 // Function to download an image from a URL, and upload it to Firebase Storage
 async function uploadImageAndGetUrl(imageUrl: string, propertyId: string): Promise<string> {
+    if (!isFirebaseConfigured) {
+      console.log("Firebase not configured, returning original image URL.");
+      return imageUrl;
+    }
+
     if (!imageUrl || !imageUrl.startsWith('http')) {
         console.log(`Skipping invalid or non-http URL: ${imageUrl}`);
         return imageUrl; // Return original URL if it's invalid or local
