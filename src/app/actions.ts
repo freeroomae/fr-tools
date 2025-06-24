@@ -25,12 +25,6 @@ async function uploadImageAndGetUrl(imageUrl: string, propertyId: string): Promi
     if (!isFirebaseConfigured) {
         throw new Error("Firebase configuration is incomplete. Cannot upload images. Please check your .env file.");
     }
-
-    if (!imageUrl || !imageUrl.startsWith('http')) {
-        console.log(`Skipping invalid or non-http URL: ${imageUrl}`);
-        // Return a placeholder for invalid URLs rather than failing the entire batch.
-        return "https://placehold.co/600x400.png"; 
-    }
     
     try {
         const { initializeApp, getApp, getApps } = await import('firebase/app');
@@ -103,13 +97,25 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
     console.log(`AI extracted ${properties.length} properties. Processing content...`);
     
     const processingPromises = properties.map(async (p, index) => {
+        // Step 0: Ensure all image URLs are absolute
+        const absoluteImageUrls = (p.image_urls && Array.isArray(p.image_urls))
+            ? p.image_urls.map((imgUrl: string) => {
+                try {
+                    // If imgUrl is already absolute, this works. If it's relative, it's resolved against originalUrl.
+                    return new URL(imgUrl, originalUrl).href;
+                } catch (e) {
+                    // If either URL is invalid, it might throw. We'll ignore this image.
+                    console.warn(`Could not create absolute URL for image: ${imgUrl} with base: ${originalUrl}`);
+                    return null;
+                }
+            }).filter((url): url is string => url !== null)
+            : [];
+
         // Step 1: Download images, upload to Firebase Storage, and get public URLs
         const uploadedImageUrls = await Promise.all(
-            (p.image_urls && Array.isArray(p.image_urls))
-            ? p.image_urls.map((imgUrl: string) => 
+            absoluteImageUrls.map((imgUrl: string) => 
                 uploadImageAndGetUrl(imgUrl, `prop-${Date.now()}-${index}`)
             )
-            : []
         );
 
         const finalImageUrls = uploadedImageUrls.filter(Boolean); // Filter out any nulls from failed uploads
