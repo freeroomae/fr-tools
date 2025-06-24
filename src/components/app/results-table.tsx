@@ -74,7 +74,7 @@ export function ResultsTable({ properties, onSave }: ResultsTableProps) {
              <div className="flex items-center justify-between gap-4 w-full text-left">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                     <Image
-                      src={prop.image_url || 'https://placehold.co/600x400.png'}
+                      src={prop.image_url || PLACEHOLDER_IMAGE_URL}
                       alt={prop.title}
                       width={120}
                       height={80}
