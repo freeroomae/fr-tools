@@ -2,62 +2,11 @@
 
 import { enhancePropertyContent } from '@/ai/flows/enhance-property-description';
 import { extractPropertyInfo } from '@/ai/flows/extract-property-info';
-import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
-import { savePropertiesToDb, saveHistoryEntry } from '@/lib/db';
+import { savePropertiesToDb, saveHistoryEntry, updatePropertyInDb, deletePropertyFromDb } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-
-export type Property = {
-    id: string;
-    original_url: string;
-    title: string;
-    original_title: string;
-    description: string;
-    original_description: string;
-    enhanced_title: string;
-    enhanced_description: string;
-    price: string;
-    location: string;
-    bedrooms: number;
-    bathrooms: number;
-    area: string;
-    property_type: string;
-    image_url: string;
-    image_urls: string[];
-    scraped_at: string;
-    mortgage: string;
-    neighborhood: string;
-    what_do: string;
-    city: string;
-    county: string;
-    tenant_type: string;
-    rental_timing: string;
-    furnish_type: string;
-    floor_number: number;
-    features: string[];
-    terms_and_condition: string;
-    page_link: string;
-
-    validated_information: string;
-    building_information: string;
-    permit_number: string;
-    ded_license_number: string;
-    rera_registration_number: string;
-    reference_id: string;
-    dld_brn: string;
-    listed_by_name: string;
-    listed_by_phone: string;
-    listed_by_email: string;
-};
-
-export type HistoryEntry = {
-    id: string;
-    type: 'URL' | 'HTML' | 'BULK';
-    details: string;
-    propertyCount: number;
-    date: string;
-};
+import { type Property, type HistoryEntry } from '@/lib/types';
 
 
 async function downloadImage(imageUrl: string): Promise<string | null> {
@@ -129,7 +78,7 @@ async function getHtml(url: string): Promise<string> {
     }
 }
 
-async function processAndSave(properties: any[], originalUrl: string, saveToDb: boolean, historyEntry: Omit<HistoryEntry, 'id' | 'date' | 'propertyCount'>) {
+async function processAndSaveHistory(properties: any[], originalUrl: string, historyEntry: Omit<HistoryEntry, 'id' | 'date' | 'propertyCount'>) {
     console.log(`AI extracted ${properties.length} properties. Processing content and images...`);
     
     const processingPromises = properties.map(async (p, index) => {
@@ -161,24 +110,19 @@ async function processAndSave(properties: any[], originalUrl: string, saveToDb: 
     const finalProperties = await Promise.all(processingPromises);
     
     console.log('Content processing and image downloading complete.');
-
-    if (saveToDb && finalProperties.length > 0) {
-        await savePropertiesToDb(finalProperties);
-    }
     
     await saveHistoryEntry({
         ...historyEntry,
         propertyCount: finalProperties.length,
     });
 
-    revalidatePath('/database');
     revalidatePath('/history');
 
     return finalProperties;
 }
 
 
-export async function scrapeUrl(url: string, saveToDb: boolean): Promise<Property[] | null> {
+export async function scrapeUrl(url: string): Promise<Property[] | null> {
     console.log(`Scraping URL: ${url}`);
 
     if (!url || !url.includes('http')) {
@@ -192,10 +136,10 @@ export async function scrapeUrl(url: string, saveToDb: boolean): Promise<Propert
         return [];
     }
     
-    return processAndSave(result.properties, url, saveToDb, { type: 'URL', details: url });
+    return processAndSaveHistory(result.properties, url, { type: 'URL', details: url });
 }
 
-export async function scrapeHtml(html: string, originalUrl: string = 'scraped-from-html', saveToDb: boolean): Promise<Property[] | null> {
+export async function scrapeHtml(html: string, originalUrl: string = 'scraped-from-html'): Promise<Property[] | null> {
     console.log(`Scraping HTML of length: ${html.length}`);
 
     if (!html || html.length < 100) {
@@ -208,10 +152,10 @@ export async function scrapeHtml(html: string, originalUrl: string = 'scraped-fr
         return [];
     }
     
-    return processAndSave(result.properties, originalUrl, saveToDb, { type: 'HTML', details: 'Pasted HTML content' });
+    return processAndSaveHistory(result.properties, originalUrl, { type: 'HTML', details: 'Pasted HTML content' });
 }
 
-export async function scrapeBulk(urls: string, saveToDb: boolean): Promise<Property[] | null> {
+export async function scrapeBulk(urls: string): Promise<Property[] | null> {
     const urlList = urls.split('\n').map(u => u.trim()).filter(Boolean);
     console.log(`Bulk scraping ${urlList.length} URLs.`);
 
@@ -227,7 +171,7 @@ export async function scrapeBulk(urls: string, saveToDb: boolean): Promise<Prope
             const htmlContent = await getHtml(url);
             const result = await extractPropertyInfo({ htmlContent });
             if (result && result.properties) {
-                const processed = await processAndSave(result.properties, url, saveToDb, {type: 'BULK', details: `Bulk operation included: ${url}`});
+                const processed = await processAndSaveHistory(result.properties, url, {type: 'BULK', details: `Bulk operation included: ${url}`});
                 allResults.push(...processed);
             }
         } catch (error) {
@@ -239,18 +183,43 @@ export async function scrapeBulk(urls: string, saveToDb: boolean): Promise<Prope
 }
 
 
-const EnhanceContentInput = z.object({
-  title: z.string(),
-  description: z.string(),
-});
+// NEW ACTIONS FOR DATABASE MANAGEMENT
+export async function saveProperty(property: Property) {
+    await savePropertiesToDb([property]); // savePropertiesToDb accepts an array
+    revalidatePath('/database');
+}
 
-export async function enhanceContent(input: { title: string, description: string }) {
-    const validatedInput = EnhanceContentInput.safeParse(input);
-    if (!validatedInput.success) {
-        throw new Error('Invalid input for enhancement.');
+export async function updateProperty(property: Property) {
+    await updatePropertyInDb(property);
+    revalidatePath('/database');
+}
+
+export async function deleteProperty(propertyId: string) {
+    await deletePropertyFromDb(propertyId);
+    revalidatePath('/database');
+}
+
+export async function reEnhanceProperty(property: Property): Promise<Property | null> {
+    try {
+        const enhancedContent = await enhancePropertyContent({ 
+            title: property.original_title, 
+            description: property.original_description 
+        });
+
+        const updatedProperty = {
+            ...property,
+            title: enhancedContent.enhancedTitle,
+            description: enhancedContent.enhancedDescription,
+            enhanced_title: enhancedContent.enhancedTitle,
+            enhanced_description: enhancedContent.enhancedDescription,
+        };
+        
+        await updatePropertyInDb(updatedProperty);
+        revalidatePath('/database');
+        
+        return updatedProperty;
+    } catch(error) {
+        console.error("Failed to re-enhance property:", error);
+        return null;
     }
-
-    // Call the Genkit flow
-    const result = await enhancePropertyContent(validatedInput.data);
-    return result;
 }

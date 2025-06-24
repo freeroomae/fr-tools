@@ -2,7 +2,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import { type Property, type HistoryEntry } from '@/app/actions';
+import { type Property, type HistoryEntry } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
 const dbPath = path.join(process.cwd(), 'data/properties.json');

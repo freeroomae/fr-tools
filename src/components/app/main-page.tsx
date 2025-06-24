@@ -4,7 +4,7 @@ import { useState, useTransition, useCallback, ChangeEvent, DragEvent } from 're
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { ArrowRight, FileUp, Loader2, Trash2, UploadCloud } from 'lucide-react';
+import { ArrowRight, Loader2, Trash2, UploadCloud } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,9 +19,9 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import { type Property, scrapeUrl, scrapeHtml, scrapeBulk } from '@/app/actions';
+import { type Property, scrapeUrl, scrapeHtml, scrapeBulk, saveProperty } from '@/app/actions';
 import { ResultsTable } from './results-table';
-import { downloadJson, downloadCsv } from '@/lib/export';
+import { downloadJson, downloadCsv, downloadExcel } from '@/lib/export';
 
 const UrlFormSchema = z.object({
   url: z.string().url({ message: "Please enter a valid URL." }),
@@ -33,7 +33,6 @@ const HtmlFormSchema = z.object({
 
 export function MainPage() {
   const [results, setResults] = useState<Property[]>([]);
-  const [history, setHistory] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [bulkUrls, setBulkUrls] = useState('');
@@ -59,7 +58,6 @@ export function MainPage() {
         const data = await scrapeAction();
         if (data) {
           setResults(data);
-          setHistory(prev => [...data.map(d => ({...d, id: `${d.id}-${new Date().getTime()}`})), ...prev]);
           toast({ title: "Scraping Successful", description: `Found ${data.length} properties.` });
         } else {
           throw new Error("No data returned from scraping.");
@@ -126,6 +124,24 @@ export function MainPage() {
     e.stopPropagation();
     setIsDragging(dragging);
   };
+
+  const handleSaveProperty = useCallback((property: Property) => {
+    startTransition(async () => {
+      try {
+        await saveProperty(property);
+        toast({
+          title: "Property Saved",
+          description: "The property has been added to your database.",
+        });
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Save Failed",
+          description: "Could not save the property to the database.",
+        });
+      }
+    });
+  }, [toast]);
 
   return (
     <>
@@ -224,6 +240,7 @@ export function MainPage() {
                  <div className="flex gap-2">
                   <Button variant="outline" onClick={() => downloadJson(results, 'properties')}>Export JSON</Button>
                   <Button variant="outline" onClick={() => downloadCsv(results, 'properties')}>Export CSV</Button>
+                  <Button variant="outline" onClick={() => downloadExcel(results, 'properties')}>Export Excel</Button>
                   <Button variant="destructive" size="sm" onClick={() => setResults([])}><Trash2 className="mr-2 h-4 w-4"/>Clear Results</Button>
                 </div>
               )}
@@ -235,6 +252,7 @@ export function MainPage() {
             ) : (
               <ResultsTable 
                 properties={results}
+                onSave={handleSaveProperty}
               />
             )}
           </div>
