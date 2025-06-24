@@ -2,7 +2,7 @@
 
 import { saveAs } from 'file-saver';
 import { utils, write } from 'xlsx';
-import type { Property } from '@/app/actions';
+import type { Property } from '@/lib/types';
 
 const getAbsoluteUrl = (url: string) => {
   if (url.startsWith('http')) {
@@ -94,8 +94,8 @@ const flattenObject = (obj: any, parentKey = '', result: { [key: string]: any } 
 
 // Function to download data as a JSON file
 export const downloadJson = (data: Property[], filename: string) => {
-  const nestedData = data.map(createNestedObject);
-  const jsonString = JSON.stringify(nestedData, null, 2);
+  const flattenedData = data.map(prop => flattenObject(createNestedObject(prop)));
+  const jsonString = JSON.stringify(flattenedData, null, 2);
   const blob = new Blob([jsonString], { type: 'application/json' });
   saveAs(blob, `${filename}.json`);
 };
