@@ -1,3 +1,4 @@
+
 "use server";
 
 import { enhancePropertyContent } from '@/ai/flows/enhance-property-description';
@@ -5,6 +6,7 @@ import { extractPropertyInfo } from '@/ai/flows/extract-property-info';
 import { savePropertiesToDb, saveHistoryEntry, updatePropertyInDb, deletePropertyFromDb } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { type Property, type HistoryEntry } from '@/lib/types';
+import { uploadImageFromUrl } from '@/lib/storage';
 
 async function getHtml(url: string): Promise<string> {
     try {
@@ -33,18 +35,28 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
     console.log(`AI extracted ${properties.length} properties. Processing content...`);
     
     const processingPromises = properties.map(async (p, index) => {
-        let finalImageUrls = (p.image_urls && Array.isArray(p.image_urls))
+        // Step 1: Handle and upload images
+        let originalImageUrls = (p.image_urls && Array.isArray(p.image_urls))
             ? p.image_urls.filter((url: any): url is string => typeof url === 'string' && url.startsWith('http'))
             : [];
+        
+        console.log(`Found ${originalImageUrls.length} images for property. Uploading to storage...`);
+        const uploadedImageUrls = await Promise.all(
+            originalImageUrls.map(url => uploadImageFromUrl(url))
+        );
 
+        let finalImageUrls = uploadedImageUrls.filter((url): url is string => !!url);
         if (finalImageUrls.length === 0) {
             finalImageUrls = ['https://placehold.co/600x400.png'];
         }
-        
+        console.log(`Finished uploading images. New URLs:`, finalImageUrls);
+
+        // Step 2: Enhance text content
         const enhancedContent = (p.title && p.description) 
             ? await enhancePropertyContent({ title: p.title, description: p.description })
             : { enhancedTitle: p.title, enhancedDescription: p.description };
         
+        // Step 3: Assemble final property object
         return {
             ...p,
             id: `prop-${Date.now()}-${index}`,
