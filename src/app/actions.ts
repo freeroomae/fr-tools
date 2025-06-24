@@ -5,9 +5,8 @@ import { extractPropertyInfo } from '@/ai/flows/extract-property-info';
 import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
-import { getSession, logout } from '@/lib/auth';
+import { savePropertiesToDb, saveHistoryEntry } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 
 export type Property = {
     id: string;
@@ -16,8 +15,8 @@ export type Property = {
     original_title: string;
     description: string;
     original_description: string;
-    enhanced_title?: string;
-    enhanced_description?: string;
+    enhanced_title: string;
+    enhanced_description: string;
     price: string;
     location: string;
     bedrooms: number;
@@ -51,6 +50,15 @@ export type Property = {
     listed_by_phone: string;
     listed_by_email: string;
 };
+
+export type HistoryEntry = {
+    id: string;
+    type: 'URL' | 'HTML' | 'BULK';
+    details: string;
+    propertyCount: number;
+    date: string;
+};
+
 
 async function downloadImage(imageUrl: string): Promise<string | null> {
     // Don't download placeholders or invalid URLs
@@ -121,7 +129,56 @@ async function getHtml(url: string): Promise<string> {
     }
 }
 
-export async function scrapeUrl(url: string): Promise<Property[] | null> {
+async function processAndSave(properties: any[], originalUrl: string, saveToDb: boolean, historyEntry: Omit<HistoryEntry, 'id' | 'date' | 'propertyCount'>) {
+    console.log(`AI extracted ${properties.length} properties. Processing content and images...`);
+    
+    const processingPromises = properties.map(async (p, index) => {
+        const downloadedImageUrls = await Promise.all(
+            (p.image_urls || []).map((url: string) => downloadImage(url))
+        );
+        const localImageUrls = downloadedImageUrls.filter((url): url is string => !!url);
+
+        const enhancedContent = (p.title && p.description) 
+            ? await enhancePropertyContent({ title: p.title, description: p.description })
+            : { enhancedTitle: p.title, enhancedDescription: p.description };
+        
+        return {
+            ...p,
+            id: `prop-${Date.now()}-${index}`,
+            original_url: originalUrl,
+            original_title: p.title,
+            original_description: p.description,
+            title: enhancedContent.enhancedTitle,
+            description: enhancedContent.enhancedDescription,
+            enhanced_title: enhancedContent.enhancedTitle,
+            enhanced_description: enhancedContent.enhancedDescription,
+            scraped_at: new Date().toISOString(),
+            image_urls: localImageUrls.length > 0 ? localImageUrls : ['https://placehold.co/600x400.png'],
+            image_url: localImageUrls.length > 0 ? localImageUrls[0] : 'https://placehold.co/600x400.png',
+        };
+    });
+
+    const finalProperties = await Promise.all(processingPromises);
+    
+    console.log('Content processing and image downloading complete.');
+
+    if (saveToDb && finalProperties.length > 0) {
+        await savePropertiesToDb(finalProperties);
+    }
+    
+    await saveHistoryEntry({
+        ...historyEntry,
+        propertyCount: finalProperties.length,
+    });
+
+    revalidatePath('/database');
+    revalidatePath('/history');
+
+    return finalProperties;
+}
+
+
+export async function scrapeUrl(url: string, saveToDb: boolean): Promise<Property[] | null> {
     console.log(`Scraping URL: ${url}`);
 
     if (!url || !url.includes('http')) {
@@ -129,10 +186,16 @@ export async function scrapeUrl(url: string): Promise<Property[] | null> {
     }
     
     const htmlContent = await getHtml(url);
-    return scrapeHtml(htmlContent, url);
+    const result = await extractPropertyInfo({ htmlContent });
+    if (!result || !result.properties) {
+        console.log("AI extraction returned no properties.");
+        return [];
+    }
+    
+    return processAndSave(result.properties, url, saveToDb, { type: 'URL', details: url });
 }
 
-export async function scrapeHtml(html: string, originalUrl: string = 'scraped-from-html'): Promise<Property[] | null> {
+export async function scrapeHtml(html: string, originalUrl: string = 'scraped-from-html', saveToDb: boolean): Promise<Property[] | null> {
     console.log(`Scraping HTML of length: ${html.length}`);
 
     if (!html || html.length < 100) {
@@ -145,41 +208,10 @@ export async function scrapeHtml(html: string, originalUrl: string = 'scraped-fr
         return [];
     }
     
-    console.log(`AI extracted ${result.properties.length} properties. Processing content and images...`);
-    
-    const processingPromises = result.properties.map(async (p, index) => {
-        const downloadedImageUrls = await Promise.all(
-            p.image_urls.map(url => downloadImage(url))
-        );
-        const localImageUrls = downloadedImageUrls.filter((url): url is string => !!url);
-
-        const enhancedContent = (p.title && p.description) 
-            ? await enhancePropertyContent({ title: p.title, description: p.description })
-            : null;
-        
-        return {
-            ...p,
-            id: `prop-${Date.now()}-${index}`,
-            original_url: originalUrl,
-            original_title: p.title,
-            original_description: p.description,
-            title: enhancedContent ? enhancedContent.enhancedTitle : p.title,
-            description: enhancedContent ? enhancedContent.enhancedDescription : p.description,
-            enhanced_title: enhancedContent?.enhancedTitle,
-            enhanced_description: enhancedContent?.enhancedDescription,
-            scraped_at: new Date().toISOString(),
-            image_urls: localImageUrls.length > 0 ? localImageUrls : ['https://placehold.co/600x400.png'],
-            image_url: localImageUrls.length > 0 ? localImageUrls[0] : 'https://placehold.co/600x400.png',
-        };
-    });
-
-    const properties = await Promise.all(processingPromises);
-    
-    console.log('Content processing and image downloading complete.');
-    return properties;
+    return processAndSave(result.properties, originalUrl, saveToDb, { type: 'HTML', details: 'Pasted HTML content' });
 }
 
-export async function scrapeBulk(urls: string): Promise<Property[] | null> {
+export async function scrapeBulk(urls: string, saveToDb: boolean): Promise<Property[] | null> {
     const urlList = urls.split('\n').map(u => u.trim()).filter(Boolean);
     console.log(`Bulk scraping ${urlList.length} URLs.`);
 
@@ -192,19 +224,20 @@ export async function scrapeBulk(urls: string): Promise<Property[] | null> {
     for (const url of urlList) {
         try {
             console.log(`Scraping ${url} in bulk...`);
-            const properties = await scrapeUrl(url);
-            if (properties) {
-                allResults.push(...properties);
+            const htmlContent = await getHtml(url);
+            const result = await extractPropertyInfo({ htmlContent });
+            if (result && result.properties) {
+                const processed = await processAndSave(result.properties, url, saveToDb, {type: 'BULK', details: `Bulk operation included: ${url}`});
+                allResults.push(...processed);
             }
         } catch (error) {
             console.error(`Failed to scrape ${url} during bulk operation:`, error);
-            // In a real app, you might want to surface this failure to the user.
-            // For now, we just log it and continue.
         }
     }
-
+    
     return allResults;
 }
+
 
 const EnhanceContentInput = z.object({
   title: z.string(),
@@ -220,22 +253,4 @@ export async function enhanceContent(input: { title: string, description: string
     // Call the Genkit flow
     const result = await enhancePropertyContent(validatedInput.data);
     return result;
-}
-
-export async function login(username: string, password: string) {
-  if (username.toLowerCase() === 'admin' && password === 'admin') {
-    const session = await getSession();
-    session.username = username;
-    session.isLoggedIn = true;
-    await session.save();
-    revalidatePath('/');
-    redirect('/');
-  }
-  throw new Error('Invalid username or password.');
-}
-
-export async function logoutUser() {
-  await logout();
-  revalidatePath('/');
-  redirect('/login');
 }

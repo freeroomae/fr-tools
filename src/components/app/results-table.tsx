@@ -1,15 +1,19 @@
 "use client";
 
+import { useState } from 'react';
 import Image from 'next/image';
-import { BedDouble, Bath, Square, MapPin, Building, Globe, CheckCircle, FileText, Clock, Users, Sofa, List, Hash, ChevronDown, Mail, Phone, User, Award, ShieldCheck, FileKey, Building2, Images } from 'lucide-react';
+import { BedDouble, Bath, Square, MapPin, Building, Globe, CheckCircle, FileText, Clock, Users, Sofa, List, Hash, ChevronDown, Mail, Phone, User, Award, ShieldCheck, FileKey, Building2, Images, Sparkles, Save } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { type Property } from '@/app/actions';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { EnhanceDialog } from './enhance-dialog';
 
 interface ResultsTableProps {
   properties: Property[];
+  onSave: (property: Property) => void;
 }
 
 interface DetailItemProps {
@@ -22,18 +26,35 @@ const DetailItem: React.FC<DetailItemProps> = ({ icon: Icon, label, value }) => 
   if (value === null || value === undefined || value === '' || (typeof value === 'number' && value === 0)) {
     return null;
   }
+  
+  const renderValue = () => {
+    if (typeof value === 'string' && (value.includes('<p>') || value.includes('<li>'))) {
+       return <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: value }} />;
+    }
+    if (typeof value === 'string' && value.startsWith('http')) {
+        return (
+            <a href={value} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+            {value}
+            </a>
+        );
+    }
+    return <span className="text-muted-foreground break-all">{String(value)}</span>;
+  };
+  
   return (
     <div className="flex items-start">
       <Icon className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
       <div>
         <span className="font-semibold">{label}: </span>
-        <span className="text-muted-foreground break-all">{String(value)}</span>
+        {renderValue()}
       </div>
     </div>
   );
 };
 
-export function ResultsTable({ properties }: ResultsTableProps) {
+export function ResultsTable({ properties, onSave }: ResultsTableProps) {
+  const [enhanceContent, setEnhanceContent] = useState<{ original: string, enhanced: string } | null>(null);
+
   if (properties.length === 0) {
     return (
       <Card className="text-center py-12">
@@ -45,6 +66,7 @@ export function ResultsTable({ properties }: ResultsTableProps) {
   }
 
   return (
+    <>
     <Accordion type="single" collapsible className="w-full space-y-3">
       {properties.map((prop) => (
         <AccordionItem value={prop.id} key={prop.id} className="border rounded-lg bg-card overflow-hidden transition-all hover:border-primary/20">
@@ -82,6 +104,20 @@ export function ResultsTable({ properties }: ResultsTableProps) {
           <AccordionContent>
             <div className="px-4 pb-4 border-t pt-4 bg-muted/50 space-y-6">
               
+              <div className='flex justify-end gap-2'>
+                 <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setEnhanceContent({ original: prop.original_description, enhanced: prop.description })}
+                  >
+                   <Sparkles className="mr-2" /> View AI Enhancement
+                 </Button>
+                 <Button size="sm" onClick={() => onSave(prop)}>
+                   <Save className="mr-2" /> Save to Database
+                  </Button>
+              </div>
+              <Separator />
+
               {prop.image_urls && prop.image_urls.length > 0 && !prop.image_urls[0].includes('placehold.co') && (
                 <>
                   <div>
@@ -189,7 +225,7 @@ export function ResultsTable({ properties }: ResultsTableProps) {
                 <Separator />
                 <div className="space-y-2">
                    <h4 className="font-semibold flex items-center gap-2 text-base">Description</h4>
-                   <p className="text-muted-foreground text-sm whitespace-pre-wrap">{prop.description}</p>
+                   <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: prop.description }} />
                 </div>
                 </>
               )}
@@ -201,5 +237,12 @@ export function ResultsTable({ properties }: ResultsTableProps) {
         </AccordionItem>
       ))}
     </Accordion>
+
+    <EnhanceDialog 
+      isOpen={!!enhanceContent}
+      onClose={() => setEnhanceContent(null)}
+      content={enhanceContent}
+    />
+    </>
   );
 }

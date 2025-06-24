@@ -1,23 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getIronSession } from 'iron-session';
-import { sessionOptions, type SessionData } from '@/lib/session';
 
-export async function middleware(request: NextRequest) {
-  const session = await getIronSession<SessionData>(request.cookies, sessionOptions);
-  const { isLoggedIn } = session;
-  const { pathname } = request.nextUrl;
-
-  // If user is trying to access login page but is already logged in, redirect to home
-  if (isLoggedIn && pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  // If user is trying to access a protected page and is not logged in, redirect to login
-  if (!isLoggedIn && !pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-  
+export function middleware(request: NextRequest) {
+  // This middleware no longer performs authentication checks.
+  // It simply allows all requests to proceed.
   return NextResponse.next();
 }
 
