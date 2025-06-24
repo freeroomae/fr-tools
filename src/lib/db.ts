@@ -43,17 +43,38 @@ export async function savePropertiesToDb(newProperties: Property[]): Promise<voi
     const updatedDb = [...db];
 
     newProperties.forEach(newProp => {
-        const index = updatedDb.findIndex(p => p.id === newProp.id);
-        if (index > -1) {
-            updatedDb[index] = newProp; // Update existing property
+        // Determine if the new property is a duplicate of an existing one.
+        const existingPropIndex = updatedDb.findIndex(p => {
+            // Strongest check: a non-generic original_url
+            if (p.original_url && p.original_url !== 'scraped-from-html' && p.original_url === newProp.original_url) {
+                return true;
+            }
+            // Next best: a page_link extracted from the content
+            if (p.page_link && newProp.page_link && p.page_link === newProp.page_link) {
+                return true;
+            }
+            // Fallback for HTML pastes without a clear URL: title and location
+            if (p.title === newProp.title && p.location === newProp.location && newProp.original_url === 'scraped-from-html') {
+                return true;
+            }
+            return false;
+        });
+
+        if (existingPropIndex > -1) {
+            // It's a duplicate, so we update the existing entry.
+            // Crucially, we keep the existing property's ID to maintain data integrity.
+            const originalId = updatedDb[existingPropIndex].id;
+            updatedDb[existingPropIndex] = { ...newProp, id: originalId };
         } else {
-            updatedDb.unshift(newProp); // Add new property to the beginning
+            // It's a new property, add it to the start of the list.
+            updatedDb.unshift(newProp);
         }
     });
 
     await writeJsonFile(dbPath, updatedDb);
     revalidatePath('/database');
 }
+
 
 export async function updatePropertyInDb(updatedProperty: Property): Promise<void> {
     const db = await getDb();
@@ -73,7 +94,8 @@ export async function deletePropertyFromDb(propertyId: string): Promise<void> {
     const updatedDb = db.filter(p => p.id !== propertyId);
     
     if (db.length === updatedDb.length) {
-        throw new Error('Property not found for deletion.');
+        // This could happen if called multiple times quickly. Not a critical error.
+        console.warn(`Property with id ${propertyId} not found for deletion, it might have been already deleted.`);
     }
 
     await writeJsonFile(dbPath, updatedDb);
