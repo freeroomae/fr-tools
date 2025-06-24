@@ -5,9 +5,6 @@ import { extractPropertyInfo } from '@/ai/flows/extract-property-info';
 import { savePropertiesToDb, saveHistoryEntry, updatePropertyInDb, deletePropertyFromDb } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { type Property, type HistoryEntry } from '@/lib/types';
-import { promises as fs } from 'fs';
-import path from 'path';
-
 
 async function getHtml(url: string): Promise<string> {
     try {
@@ -35,54 +32,14 @@ async function getHtml(url: string): Promise<string> {
 async function processAndSaveHistory(properties: any[], originalUrl: string, historyEntry: Omit<HistoryEntry, 'id' | 'date' | 'propertyCount'>) {
     console.log(`AI extracted ${properties.length} properties. Processing content...`);
     
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'properties');
-    await fs.mkdir(uploadDir, { recursive: true });
-
     const processingPromises = properties.map(async (p, index) => {
-        const downloadedImageUrls: string[] = [];
-        if (p.image_urls && Array.isArray(p.image_urls)) {
-            const imagePromises = p.image_urls.map(async (imageUrl: string) => {
-                if (!imageUrl || !imageUrl.startsWith('http')) return null;
+        let finalImageUrls = (p.image_urls && Array.isArray(p.image_urls))
+            ? p.image_urls.filter((url: any): url is string => typeof url === 'string' && url.startsWith('http'))
+            : [];
 
-                try {
-                    const response = await fetch(imageUrl, {
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                        },
-                        signal: AbortSignal.timeout(10000) // 10-second timeout
-                    });
-
-                    if (!response.ok) {
-                        console.error(`Failed to download image ${imageUrl}: Status ${response.status}`);
-                        return null;
-                    }
-
-                    const arrayBuffer = await response.arrayBuffer();
-                    const buffer = Buffer.from(arrayBuffer);
-                    
-                    const contentType = response.headers.get('content-type');
-                    let extension = 'jpg'; // Default extension
-                    if (contentType?.includes('png')) extension = 'png';
-                    else if (contentType?.includes('webp')) extension = 'webp';
-                    else if (contentType?.includes('gif')) extension = 'gif';
-                    else if (contentType?.includes('jpeg')) extension = 'jpg';
-                    
-                    const filename = `${Date.now()}-${Math.floor(Math.random() * 1000000000)}.${extension}`;
-                    const filepath = path.join(uploadDir, filename);
-
-                    await fs.writeFile(filepath, buffer);
-                    return `/uploads/properties/${filename}`;
-                } catch (error) {
-                    console.error(`Error processing image ${imageUrl}:`, error);
-                    return null;
-                }
-            });
-            
-            const results = await Promise.all(imagePromises);
-            downloadedImageUrls.push(...results.filter((url): url is string => url !== null));
+        if (finalImageUrls.length === 0) {
+            finalImageUrls = ['https://placehold.co/600x400.png'];
         }
-
-        const finalImageUrls = downloadedImageUrls.length > 0 ? downloadedImageUrls : ['https://placehold.co/600x400.png'];
         
         const enhancedContent = (p.title && p.description) 
             ? await enhancePropertyContent({ title: p.title, description: p.description })
@@ -106,7 +63,7 @@ async function processAndSaveHistory(properties: any[], originalUrl: string, his
 
     const finalProperties = await Promise.all(processingPromises);
     
-    console.log('Content processing and image downloading complete.');
+    console.log('Content processing complete.');
     
     await saveHistoryEntry({
         ...historyEntry,
