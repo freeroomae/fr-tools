@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from 'react';
-import { type Property, deleteProperty, updateProperty, reEnhanceProperty } from '@/app/actions';
+import { type Property } from '@/lib/types';
+import { deleteProperty, updateProperty, reEnhanceProperty } from '@/app/actions';
 import { DatabaseTable } from '@/components/app/database-table';
 import { EditDialog } from '@/components/app/edit-dialog';
 import { useToast } from "@/hooks/use-toast";

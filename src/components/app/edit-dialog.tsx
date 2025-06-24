@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { type Property } from '@/app/actions';
+import { type Property } from '@/lib/types';
 
 interface EditDialogProps {
   property: Property | null;
@@ -76,7 +76,25 @@ export function EditDialog({ property, isOpen, onClose, onSave }: EditDialogProp
             <div className="space-y-6 py-4">
             
             {Object.entries(editedProperty).map(([key, value]) => {
-                if (key === 'id' || key === 'scraped_at' || key === 'original_url' || key === 'image_url' || key === 'image_urls') return null;
+                if (key === 'id' || key === 'scraped_at' || key === 'original_url' || key === 'image_url') return null;
+
+                if (key === 'image_urls' && Array.isArray(value)) {
+                    return (
+                        <div key={key} className="space-y-2">
+                            <Label>Image URLs</Label>
+                            {value.map((url, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                <Input
+                                    value={url}
+                                    readOnly
+                                    className="text-muted-foreground"
+                                />
+                                </div>
+                            ))}
+                             <p className="text-xs text-muted-foreground">Image URLs are read-only.</p>
+                        </div>
+                    )
+                }
                 
                 if (key === 'features' && Array.isArray(value)) {
                     return (
