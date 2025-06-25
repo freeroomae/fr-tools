@@ -32,7 +32,3 @@ yarn-error.log*
 
 # user uploads
 /public/uploads
-
-# temporary files
-/tmp
-.tmp
