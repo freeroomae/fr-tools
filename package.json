@@ -11,7 +11,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:storage": "node scripts/test-storage-config.js",
-    "test:images": "node scripts/test-image-pipeline.js"
+    "test:images": "node scripts/test-image-pipeline.js",
+    "test:e2e": "node scripts/test-e2e-images.js"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
