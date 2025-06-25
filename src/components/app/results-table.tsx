@@ -32,16 +32,22 @@ const PropertyImage: React.FC<{
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  console.log(`🖼️  [Frontend] Rendering image ${index + 1}: ${src}`);
+  if (DEBUG) {
+    console.log(`🖼️  [Frontend] Rendering image ${index + 1}: ${src}`);
+  }
 
   const handleError = () => {
-    console.error(`❌ [Frontend] Failed to load image: ${src}`);
+    if (DEBUG) {
+      console.error(`❌ [Frontend] Failed to load image: ${src}`);
+    }
     setHasError(true);
     setIsLoading(false);
   };
 
   const handleLoad = () => {
-    console.log(`✅ [Frontend] Successfully loaded image: ${src}`);
+    if (DEBUG) {
+      console.log(`✅ [Frontend] Successfully loaded image: ${src}`);
+    }
     setIsLoading(false);
   };
 
