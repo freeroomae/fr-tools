@@ -66,7 +66,7 @@ const PropertyImage: React.FC<{
   return (
     <div className="flex-shrink-0 relative">
       {isLoading && (
-        <div className="absolute inset-0 w-[200px] h-[150px] bg-muted rounded-md flex items-center justify-center">
+        <div className="absolute inset-0 w-[200px] h-[150px] bg-muted rounded-md flex items-center justify-center" role="status" aria-live="polite" aria-busy="true">
           <div className="animate-pulse text-muted-foreground">Loading...</div>
         </div>
       )}
