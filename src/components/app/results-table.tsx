@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { BedDouble, Bath, Square, MapPin, Building, Globe, CheckCircle, FileText, Clock, Users, Sofa, List, Hash, ChevronDown, Mail, Phone, User, Award, ShieldCheck, FileKey, Building2, Images, Sparkles, Save } from 'lucide-react';
+import { BedDouble, Bath, Square, MapPin, Building, Globe, CheckCircle, FileText, Clock, Users, Sofa, List, Hash, ChevronDown, Mail, Phone, User, Award, ShieldCheck, FileKey, Building2, Images, Sparkles, Save, AlertCircle } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +21,69 @@ interface DetailItemProps {
   label: string;
   value?: string | number | null;
 }
+
+// Component for handling individual images with error states
+const PropertyImage: React.FC<{
+  src: string;
+  alt: string;
+  index: number;
+  title: string;
+}> = ({ src, alt, index, title }) => {
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  if (DEBUG) {
+    console.log(`🖼️  [Frontend] Rendering image ${index + 1}: ${src}`);
+  }
+
+  const handleError = () => {
+    if (DEBUG) {
+      console.error(`❌ [Frontend] Failed to load image: ${src}`);
+    }
+    setHasError(true);
+    setIsLoading(false);
+  };
+
+  const handleLoad = () => {
+    if (DEBUG) {
+      console.log(`✅ [Frontend] Successfully loaded image: ${src}`);
+    }
+    setIsLoading(false);
+  };
+
+  if (hasError) {
+    return (
+      <div className="flex-shrink-0 w-[200px] h-[150px] bg-muted rounded-md flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
+        <div className="text-center p-4">
+          <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <p className="text-xs text-muted-foreground">Failed to load image</p>
+          <p className="text-xs text-muted-foreground/70 break-all mt-1">{src}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-shrink-0 relative">
+      {isLoading && (
+        <div className="absolute inset-0 w-[200px] h-[150px] bg-muted rounded-md flex items-center justify-center" role="status" aria-live="polite" aria-busy="true">
+          <div className="animate-pulse text-muted-foreground">Loading...</div>
+        </div>
+      )}
+      <Image
+        src={src}
+        alt={alt}
+        width={200}
+        height={150}
+        className={`rounded-md object-cover h-[150px] ${isLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+        data-ai-hint="property house"
+        onError={handleError}
+        onLoad={handleLoad}
+        unoptimized={src.includes('firebasestorage.googleapis.com')} // Disable optimization for Firebase URLs
+      />
+    </div>
+  );
+};
 
 const DetailItem: React.FC<DetailItemProps> = ({ icon: Icon, label, value }) => {
   if (value === null || value === undefined || value === '' || (typeof value === 'number' && value === 0)) {
@@ -118,22 +181,37 @@ export function ResultsTable({ properties, onSave }: ResultsTableProps) {
               </div>
               <Separator />
 
-              {prop.image_urls && prop.image_urls.length > 0 && !prop.image_urls[0].includes('placehold.co') && (
+              {prop.image_urls && prop.image_urls.length > 0 && (
                 <>
                   <div>
-                    <h4 className="font-semibold text-base mb-3 flex items-center gap-2"><Images className="h-4 w-4"/> Image Gallery</h4>
+                    <h4 className="font-semibold text-base mb-3 flex items-center gap-2">
+                      <Images className="h-4 w-4"/> 
+                      Image Gallery ({prop.image_urls.length} {prop.image_urls.length === 1 ? 'image' : 'images'})
+                    </h4>
+                    
+                    {/* Debug info for non-placeholder images */}
+                    {prop.image_urls.some(url => !url.includes('placehold.co')) && (
+                      <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                        <strong>🔍 Debug Info:</strong>
+                        <ul className="mt-1 space-y-1">
+                          {prop.image_urls.map((url, idx) => (
+                            <li key={idx} className="font-mono text-blue-700 break-all">
+                              Image {idx + 1}: {url.includes('placehold.co') ? '📷 Placeholder' : '🔗 Firebase URL'}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
                     <div className="flex overflow-x-auto space-x-4 pb-2 -mx-4 px-4">
                       {prop.image_urls.map((url, index) => (
-                        <div key={index} className="flex-shrink-0">
-                          <Image
-                            src={url || 'https://placehold.co/600x400.png'}
-                            alt={`${prop.title} image ${index + 1}`}
-                            width={200}
-                            height={150}
-                            className="rounded-md object-cover h-[150px]"
-                            data-ai-hint="property house"
-                          />
-                        </div>
+                        <PropertyImage
+                          key={`${prop.id}-${index}`}
+                          src={url || 'https://placehold.co/600x400.png'}
+                          alt={`${prop.title} image ${index + 1}`}
+                          index={index}
+                          title={prop.title || 'Property'}
+                        />
                       ))}
                     </div>
                   </div>
